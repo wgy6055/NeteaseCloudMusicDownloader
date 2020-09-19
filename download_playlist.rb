@@ -4,10 +4,10 @@ require 'json'
 require 'fileutils'
 require 'pathname'
 
-def download (id, file_path)
-    uri = URI("http://music.163.com/song/media/outer/url?id=#{id}.mp3")
-    request = Net::HTTP::Get.new(uri)
+def download_music (id, file_path)
+    uri = URI "http://music.163.com/song/media/outer/url?id=#{id}.mp3"
 
+    request = Net::HTTP::Get.new(uri)
     Net::HTTP.start(uri.host, uri.port) do |http|
         response = http.request request
         file_location = response['Location']
@@ -15,7 +15,7 @@ def download (id, file_path)
     end
 end
 
-def save_file(from_url, to_path)
+def save_file (from_url, to_path)
     uri = URI(from_url)
     request = Net::HTTP::Get.new(uri)
     Net::HTTP.start(uri.host, uri.port) do |http|
@@ -29,8 +29,37 @@ def save_file(from_url, to_path)
     end
 end
 
-# playlist.json 即是 https://music.163.com/weapi/v6/playlist/detail 接口的返回，在浏览器上手动抓一下
-file = File.open 'playlist.json'
+def download_lyric (id, file_path)
+    uri = URI "http://music.163.com/api/song/media?id=#{id}"
+
+    response = Net::HTTP.get uri
+
+    json = JSON.parse response
+    lyric = json['lyric']
+    return if lyric.nil?
+    file = File.open file_path, 'w'
+    file << process_lyric(json['lyric'])
+    file.close
+end
+
+def process_lyric (lyrics)
+    lyrics.lines.map do |line|
+        line = line.lstrip
+        if line =~ /^\[[a-z_]+:/
+            next ''
+        end
+        (line.gsub /^(\[[0-9\.:]*\])*/, '').lstrip
+    end.reject do |line|
+        line.empty?
+    end.join ''
+end
+
+begin
+    file = File.open 'playlist.json'
+rescue Exception => ex
+    puts '未能找到 playlist.json，请先在网页端抓取 https://music.163.com/weapi/v6/playlist/detail 的返回结果，并保存到 playlist.json 中'
+    exit 0
+end
 data = JSON.load file
 tracks = data['playlist']['tracks']
 tracks.each do |track|
@@ -40,12 +69,19 @@ tracks.each do |track|
         if artist_name.empty?
             artist_name = ar['name']
         else
-            artist_name = artist_name + '&' + n['name']
+            artist_name = artist_name + '&' + ar['name']
         end
     end
-    file_name = name + ' - ' + artist + '.mp3'
+    pic = track['al']['picUrl']
+    file_name = (name + ' - ' + artist).gsub('/', ' ')
     dir_name = 'Download Music'
-    file_path = dir_name + '/' + file_name.gsub('/', ' ')
+    file_path = dir_name + '/' + file_name + '.mp3'
+    pic_path = dir_name + '/' + file_name + '.jpg'
+    lyric_path = dir_name + '/' + file_name + '.txt'
     FileUtils.mkdir dir_name unless Pathname(dir_name).exist?
-    download id, file_path
+    puts "#{file_name} Downloading..."
+    download_music id, file_path
+    save_file pic, pic_path
+    download_lyric id, lyric_path
+    puts "#{file_name} Success"
 end
