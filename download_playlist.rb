@@ -3,6 +3,7 @@ require 'uri'
 require 'json'
 require 'fileutils'
 require 'pathname'
+require 'date'
 
 def download_music (id, file_path)
     uri = URI "http://music.163.com/song/media/outer/url?id=#{id}.mp3"
@@ -42,6 +43,12 @@ def download_lyric (id, file_path)
     file.close
 end
 
+def save_music_info (info, file_path)
+    file = File.open file_path, 'w'
+    file.puts(JSON.pretty_generate(info))
+    file.close
+end
+
 def process_lyric (lyrics)
     lyrics.lines.map do |line|
         line = line.lstrip
@@ -74,14 +81,24 @@ tracks.each do |track|
     end
     pic = track['al']['picUrl']
     file_name = (name + ' - ' + artist).gsub('/', ' ')
+    date = Date.strptime(track['publishTime'].to_s, '%Q') unless track['publishTime'] == 0
+    info = {
+        'album' => track['al']['name'],
+        'title' => name,
+        'artist' => artist,
+        'alias' => track['alia'].first,
+        'year' => date.nil? ? nil : date.year,
+    }
     dir_name = 'Download Music'
     file_path = dir_name + '/' + file_name + '.mp3'
     pic_path = dir_name + '/' + file_name + '.jpg'
     lyric_path = dir_name + '/' + file_name + '.txt'
+    info_path = dir_name + '/' + file_name + ' - info' + '.json'
     FileUtils.mkdir dir_name unless Pathname(dir_name).exist?
     puts "#{file_name} Downloading..."
     download_music id, file_path
     save_file pic, pic_path
     download_lyric id, lyric_path
+    save_music_info info, info_path
     puts "#{file_name} Success"
 end
