@@ -1,5 +1,5 @@
 # NeteaseCloudMusicDownloader
-下载网易云音乐歌单到本地，包括歌曲、专辑封面和歌词
+下载网易云音乐歌单到本地，包括歌曲、专辑封面和歌词。相关文章在[这里](https://juejin.im/post/6874440262609797128)。
 
 > 仅用作学习交流
 ## How to use
